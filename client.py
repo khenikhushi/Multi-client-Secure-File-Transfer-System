@@ -7,14 +7,6 @@ Command-line client for the secure file transfer server.
   python client.py --host 10.0.0.5 --port 5000
   python client.py --no-tls              # plain TCP (isolated Wireshark lab ONLY)
 
-Shell commands:
-  register <user>        create an account (asks for the password)
-  login <user>           log in (asks for the password)
-  list                   show your files
-  put <path> [--overwrite]   upload a local file
-  get <name> [folder] [--overwrite]   download into folder (default: current folder)
-  logout | quit | help
-
 SecureFTClient is also used by tests/stress_test.py, so keep it importable.
 This file never imports server-side (Person B) modules.
 """
@@ -206,7 +198,14 @@ class SecureFTClient:
 
 
 # ======================================================================= CLI
-HELP = __doc__.split("Shell commands:")[1].split("SecureFTClient")[0].rstrip()
+HELP = """
+  register <user>        create an account (asks for the password)
+  login <user>           log in (asks for the password)
+  list                   show your files
+  put <path> [--overwrite]   upload a local file
+  get <name> [folder] [--overwrite]   download into folder (default: current folder)
+  logout | quit | help
+""".rstrip()
 
 
 def _show(resp):

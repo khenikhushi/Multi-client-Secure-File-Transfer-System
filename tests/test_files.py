@@ -36,6 +36,12 @@ def test_validate_size_rejects_invalid_values(size):
     assert exc_info.value.status == 400
 
 
+def test_validate_filename_uses_shared_path_rules():
+    validators.validate_filename("report.pdf")
+    with pytest.raises(AppError):
+        validators.validate_filename("CON.txt")
+
+
 def test_mock_controller_rejects_upload_over_configured_limit(monkeypatch):
     monkeypatch.setattr(config, "MAX_FILE_SIZE", 100)
     controllers = mock_controllers.build()
