@@ -12,7 +12,7 @@ import secrets
 import threading
 from types import SimpleNamespace
 
-MOCK_MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB is plenty for tests
+import config
 
 
 def _resp(status, code, message, data=None):
@@ -114,7 +114,7 @@ def build():
             return _resp(401, "UNAUTHENTICATED", "Invalid or expired session"), None
         if size <= 0 or not filename:
             return _resp(400, "BAD_REQUEST", "Invalid size or filename"), None
-        if size > MOCK_MAX_FILE_SIZE:
+        if size > config.MAX_FILE_SIZE:
             return _resp(413, "TOO_LARGE", "File too large"), None
         with state["lock"]:
             exists = filename in state["files"].get(user, {})

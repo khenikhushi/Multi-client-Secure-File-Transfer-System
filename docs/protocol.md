@@ -17,6 +17,10 @@ UTF-8 JSON object prefixed by a four-byte unsigned big-endian length.
 Requests contain `v`, `id`, `cmd`, and command-specific fields. Responses
 echo the request id and include `status`, `code`, `message`, and `data`.
 
+Uploads must declare a positive size no larger than `MAX_FILE_SIZE` (100 MiB
+by default). Invalid sizes receive `400 BAD_REQUEST`; oversized files receive
+`413 TOO_LARGE` before the server accepts file bytes.
+
 The server validates protocol structure before dispatch. Invalid frames,
 unknown versions, unknown commands, and malformed requests receive a 400
 response. Semantic validation, authentication, authorization, and file

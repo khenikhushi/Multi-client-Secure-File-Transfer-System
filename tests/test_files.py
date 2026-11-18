@@ -8,7 +8,47 @@ import os
 
 import pytest
 
+import config
+from mocks import mock_controllers
+from middleware import validators
+from services.errors import AppError
 from utils import hashing, paths
+
+
+# ---------- upload size validation ----------
+def test_validate_size_accepts_configured_limit(monkeypatch):
+    monkeypatch.setattr(config, "MAX_FILE_SIZE", 100)
+    validators.validate_size(100)
+
+
+def test_validate_size_rejects_over_limit_with_413(monkeypatch):
+    monkeypatch.setattr(config, "MAX_FILE_SIZE", 100)
+    with pytest.raises(AppError) as exc_info:
+        validators.validate_size(101)
+    assert exc_info.value.status == 413
+    assert exc_info.value.code == "TOO_LARGE"
+
+
+@pytest.mark.parametrize("size", [0, -1, True, "1", None])
+def test_validate_size_rejects_invalid_values(size):
+    with pytest.raises(AppError) as exc_info:
+        validators.validate_size(size)
+    assert exc_info.value.status == 400
+
+
+def test_mock_controller_rejects_upload_over_configured_limit(monkeypatch):
+    monkeypatch.setattr(config, "MAX_FILE_SIZE", 100)
+    controllers = mock_controllers.build()
+    controllers.register("testuser", "password123", "127.0.0.1")
+    login = controllers.login("testuser", "password123", "127.0.0.1")
+
+    result, handle = controllers.begin_upload(
+        login["data"]["token"], "127.0.0.1", "file.txt", 101, "a" * 64
+    )
+
+    assert result["status"] == 413
+    assert result["code"] == "TOO_LARGE"
+    assert handle is None
 
 
 # ---------- hashing ----------
