@@ -12,6 +12,7 @@ from utils.framing import (
     ConnectionClosed,
     FramingError,
     recv_message,
+    send_message,
 )
 
 
@@ -46,6 +47,7 @@ def _handle_client(sock, address, controllers):
     sock.settimeout(config.IDLE_TIMEOUT)
     try:
         while True:
+            request = None
             try:
                 request = recv_message(sock, max_size=config.MAX_CONTROL_MSG)
                 validate_request(request)
@@ -53,11 +55,10 @@ def _handle_client(sock, address, controllers):
             except (ConnectionClosed, OSError):
                 break
             except FramingError as exc:
+                req_id = request.get("id") if isinstance(request, dict) else None
                 try:
-                    req_id = request.get("id") if isinstance(request, dict) else None
-                    from utils.framing import send_message
                     send_message(sock, error_response(req_id, 400, str(exc), "BAD_REQUEST"))
-                except Exception:
+                except (FramingError, OSError):
                     pass
                 break
     finally:
@@ -76,7 +77,6 @@ def run_server(controllers, cfg):
 
     tls_context = _make_tls_context(cfg) if cfg.USE_TLS else None
     semaphore = threading.BoundedSemaphore(cfg.MAX_CLIENTS)
-    threads = []
 
     try:
         while True:
@@ -105,7 +105,6 @@ def run_server(controllers, cfg):
                     semaphore.release()
 
             thread = threading.Thread(target=worker, daemon=True)
-            threads.append(thread)
             thread.start()
     except KeyboardInterrupt:
         pass

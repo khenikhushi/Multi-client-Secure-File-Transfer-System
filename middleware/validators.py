@@ -2,11 +2,11 @@ import re
 
 import config
 from services.errors import AppError
+from utils.paths import is_safe_filename
 
 USERNAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{2,31}$")
 PASSWORD_MIN = 8
 PASSWORD_MAX = 1024
-FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
 
 def bad(message):
@@ -29,14 +29,6 @@ def is_valid_password(password):
 def validate_password(password):
     if not is_valid_password(password):
         bad("Password must be 8 to 1024 characters")
-
-
-def is_safe_filename(filename):
-    return (isinstance(filename, str) and FILENAME_RE.fullmatch(filename) is not None
-            and filename not in {".", ".."}
-            and ".." not in filename
-            and filename.lower() not in {"nul", "con", "prn", "aux"}
-            and not filename.lower().startswith(("com", "lpt")))
 
 
 def validate_filename(filename):
