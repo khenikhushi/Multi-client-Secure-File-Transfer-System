@@ -83,7 +83,8 @@ class SecureFTClient:
         self.connect()
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *_exc):
+        del _exc
         self.close()
 
     # ------------------------------------------------------------ plumbing

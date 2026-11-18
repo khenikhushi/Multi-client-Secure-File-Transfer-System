@@ -40,7 +40,8 @@ class _MockUploadHandle:
         return _resp(200, "OK", "Uploaded and verified",
                      {"filename": self._filename, "size": self._size, "sha256": self._sha256})
 
-    def abort(self, reason=""):
+    def abort(self, _reason=""):
+        del _reason
         self.aborted = True
         self._buf = bytearray()
 
@@ -68,14 +69,16 @@ def build():
         with state["lock"]:
             return state["tokens"].get(token)
 
-    def register(username, password, ip):
+    def register(username, password, _ip):
+        del _ip
         with state["lock"]:
             if username in state["users"]:
                 return _resp(409, "CONFLICT", "Username already exists")
             state["users"][username] = password
         return _resp(200, "OK", "Registered")
 
-    def login(username, password, ip):
+    def login(username, password, _ip):
+        del _ip
         with state["lock"]:
             if state["users"].get(username) != password:
                 return _resp(401, "UNAUTHENTICATED", "Invalid username or password")
@@ -84,13 +87,15 @@ def build():
         return _resp(200, "OK", "Logged in",
                      {"token": token, "expires_in": 1800, "username": username, "role": "user"})
 
-    def logout(token, ip):
+    def logout(token, _ip):
+        del _ip
         with state["lock"]:
             if state["tokens"].pop(token, None) is None:
                 return _resp(401, "UNAUTHENTICATED", "Invalid or expired session")
         return _resp(200, "OK", "Logged out")
 
-    def list_files(token, ip):
+    def list_files(token, _ip):
+        del _ip
         user = _user_for(token)
         if user is None:
             return _resp(401, "UNAUTHENTICATED", "Invalid or expired session")
@@ -102,7 +107,8 @@ def build():
             ]
         return _resp(200, "OK", "%d file(s)" % len(files), {"files": files})
 
-    def begin_upload(token, ip, filename, size, sha256, overwrite=False):
+    def begin_upload(token, _ip, filename, size, sha256, overwrite=False):
+        del _ip
         user = _user_for(token)
         if user is None:
             return _resp(401, "UNAUTHENTICATED", "Invalid or expired session"), None
@@ -116,7 +122,8 @@ def build():
             return _resp(409, "CONFLICT", "File already exists"), None
         return _resp(200, "OK", "Ready"), _MockUploadHandle(state, user, filename, size, sha256)
 
-    def open_download(token, ip, filename):
+    def open_download(token, _ip, filename):
+        del _ip
         user = _user_for(token)
         if user is None:
             return _resp(401, "UNAUTHENTICATED", "Invalid or expired session"), None

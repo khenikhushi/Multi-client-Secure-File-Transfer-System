@@ -19,7 +19,8 @@ class TrickleSocket:
         self.data = data
         self.pos = 0
 
-    def recv(self, n):
+    def recv(self, _n):
+        del _n
         if self.pos >= len(self.data):
             return b""
         b = self.data[self.pos:self.pos + 1]

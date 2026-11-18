@@ -9,8 +9,9 @@ from services import session_service
 from services.errors import unauthenticated
 
 
-def require_session(token, ip):
+def require_session(token, _ip):
     """Return {session_id, user_id, username, role} or raise AppError(401)."""
+    del _ip
     info = session_service.validate_token(token)
     if info is None:
         raise unauthenticated()
