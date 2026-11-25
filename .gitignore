@@ -5,3 +5,9 @@ __pycache__/
 certs/
 storage/
 logs/*.log
+
+.vscode/settings.json
+capture-demo.txt
+demo.txt
+downloads/demo.txt
+khushi.txt
