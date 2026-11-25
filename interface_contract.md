@@ -1,7 +1,7 @@
-# INTERFACE_CONTRACT.md — Multi-Client Secure File Transfer System
+# Multi-Client Secure File Transfer System — Interface Contract
 
-**Status: DRAFT v1 → becomes FROZEN once both members sign off (Day 1, Hour 0–1).**
-After freezing, any change needs both members to agree and a version bump at the bottom of this file.
+This document describes the system architecture, protocol, and interfaces.
+Keep it consistent with the implementation and test results.
 
 ---
 
@@ -9,105 +9,96 @@ After freezing, any change needs both members to agree and a version bump at the
 
 ```
  CLIENT (client.py)                       SERVER PROCESS
- ┌──────────────┐   TCP + TLS    ┌─────────────────────────────────────────────┐
- │ CLI          │◄──────────────►│  PERSON A                  PERSON B         │
- │ framing.py   │  4-byte length │  server.py                                  │
- └──────────────┘  + JSON, then  │    │ thread per connection                  │
-                   raw bytes     │  utils/framing.py                           │
-                                 │    │                                        │
-                                 │  protocol.py  (validate shape, dispatch)    │
-                                 │    │                                        │
-                                 │  routes/file_routes.py                      │
-                                 │    │  ═══ INTEGRATION BOUNDARY ═══          │
-                                 │    ▼  (controllers injected by app.py)      │
-                                 │  controllers/  → middleware/ → services/    │
-                                 │                              → models/      │
-                                 │                              → database/ ── MySQL
-                                 │                              → storage/, logs/
-                                 └─────────────────────────────────────────────┘
+ ┌──────────────┐   TCP + TLS    ┌───────────────────────────────────────────┐
+ │ CLI          │◄──────────────►│ app.py                                    │
+ │ framing.py   │  4-byte length │   ├── server.py (thread per connection)   │
+ └──────────────┘  + JSON, then  │   ├── protocol.py and routes/             │
+                   raw bytes     │   └── controllers → services → models     │
+                                 │                      ├── MySQL database   │
+                                 │                      └── storage and logs │
+                                 └───────────────────────────────────────────┘
 ```
 
-**Rule of the boundary:** Person A never imports anything from `database/`, `models/`, `services/`, `middleware/`. Person A only calls the six controller functions in §6. Person B never imports `socket`, `ssl`, `server`, `client`, `protocol`, `framing`.
+**Dependency injection:** `server.py` receives a controller object from `app.py`.
+The app can provide database-backed controllers or in-memory mock controllers.
 
-**Dependency injection:** `server.py` does not import controllers. `app.py` builds a `Controllers` object (real or mock) and passes it to `server.run_server(controllers, config)`. That is how A tests with mocks and B tests without a socket.
-
-**Concurrency model:** one thread per connection (`threading.Thread`), capped by `MAX_CLIENTS` (default 100, enforced with a `BoundedSemaphore`). MySQL access uses a connection pool (`pool_size=20`) inside Person B's `database/connection.py`. Simple, beginner-friendly, and enough for 50+ clients.
+**Concurrency model:** the server uses one thread per connection, capped by
+`MAX_CLIENTS` (default 100). MySQL connections are managed by a connection pool.
 
 ---
 
-## 2. Final directory structure and ownership
-
-`[A]` = Person A only, `[B]` = Person B only, `[J]` = joint (created once in Hour 0, then changed only by agreement).
+## 2. Project structure
 
 ```text
 secure_file_transfer/
-├── app.py                       [J] wires controllers into server; --mock flag
-├── config.py                    [J] loads .env, exposes constants (frozen §9)
-├── server.py                    [A]
-├── client.py                    [A]
-├── protocol.py                  [A]
+├── app.py                       wires controllers into the server
+├── config.py                    loads .env and exposes settings
+├── server.py                    accepts connections and handles requests
+├── client.py                    interactive command-line client
+├── protocol.py                  validates protocol requests and responses
 │
-├── database/                    [B]
+├── database/
 │   ├── __init__.py
-│   ├── connection.py            pool + get_connection()
-│   ├── init_db.py               runs schema.sql + seed.sql
-│   ├── schema.sql               (§7)
+│   ├── connection.py            MySQL connection pool and query helpers
+│   ├── init_db.py               runs schema.sql and seed.sql
+│   ├── schema.sql
 │   └── seed.sql                 roles: user, admin
-├── models/                      [B]
+├── models/
 │   ├── __init__.py
 │   ├── user.py  role.py  file_record.py  session.py  audit_log.py
-├── controllers/                 [B]
+├── controllers/
 │   ├── __init__.py
 │   ├── auth_controller.py       register, login, logout
 │   └── file_controller.py       list_files, begin_upload, open_download
-├── middleware/                  [B]
+├── middleware/
 │   ├── __init__.py
 │   ├── auth_middleware.py       require_session(token, ip)
 │   └── validators.py            username / password / filename / size checks
-├── services/                    [B]
+├── services/
 │   ├── __init__.py
 │   ├── auth_service.py  session_service.py
 │   ├── file_service.py  audit_service.py
 │
 ├── routes/
 │   ├── __init__.py
-│   └── file_routes.py           [A] command → controller mapping
+│   └── file_routes.py           command → controller mapping
 │
 ├── mocks/
 │   ├── __init__.py
-│   └── mock_controllers.py      [A] fake controllers so A needs no DB
+│   └── mock_controllers.py      in-memory controllers for testing
 │
 ├── utils/
-│   ├── __init__.py              [J] empty
-│   ├── framing.py               [A]
-│   ├── hashing.py               [B]
-│   ├── passwords.py             [B]
-│   └── paths.py                 [B]
+│   ├── __init__.py
+│   ├── framing.py               control-message and file-byte framing
+│   ├── hashing.py               SHA-256 helpers
+│   ├── passwords.py             password hashing and verification
+│   └── paths.py                 safe storage path handling
 │
-├── certs/                       [A] gitignored; server.crt / server.key
+├── certs/                       local TLS certificate and private key
 ├── scripts/
-│   └── gen_certs.sh             [A] openssl self-signed cert
-├── storage/                     [B] runtime, gitignored (storage/<user_id>/, storage/.tmp/)
-├── logs/                        [B] audit.log / app.log;  [A] server.log
+│   └── gen_certs.sh             creates a local self-signed certificate
+├── storage/                     uploaded files and temporary uploads
+├── logs/                        server and audit logs
 │
 ├── tests/
-│   ├── test_protocol.py         [A]
-│   ├── stress_test.py           [A] N concurrent clients
-│   ├── test_auth.py             [B]
-│   └── test_files.py            [B]
+│   ├── test_protocol.py         framing tests
+│   ├── stress_test.py           concurrent client test
+│   ├── test_auth.py             authentication tests
+│   └── test_files.py            file and path tests
 │
 ├── docs/
-│   ├── protocol.md              [A]
-│   ├── threat-model.md          [B]
-│   └── test-plan.md             [J]
+│   ├── protocol.md
+│   ├── threat-model.md
+│   └── test-plan.md
 │
-├── INTERFACE_CONTRACT.md        [J] this file
-├── requirements.txt  .env.example  .gitignore  README.md   [J]
+├── requirements.txt
+├── .env.example
+├── .gitignore
+└── README.md
 ```
 
-`logs/server.log` (connections, disconnects, protocol errors) is Python `logging` written by A. `logs/audit.log` plus the `audit_logs` table (logins, file operations) is written by B.
-
-**Git workflow:** branches `person-a` and `person-b`; each only commits to their own paths; `[J]` files are edited on `main` by agreement. Merge to `main` at the end of Day 1 and again at the end of Day 2.
+`logs/server.log` records server activity. `logs/audit.log` and the
+`audit_logs` table record authentication and file-operation events.
 
 ---
 
@@ -159,19 +150,23 @@ secure_file_transfer/
 | 429 | `TOO_MANY_ATTEMPTS` | Account temporarily locked (5 failed logins → 5 min lock) |
 | 500 | `SERVER_ERROR` | Unexpected error (details only in logs, never sent to client) |
 
-Security note for B: login failures always return the same message ("Invalid username or password") whether the user exists or not.
+Authentication note: login failures use the same message ("Invalid username or
+password") whether the username exists or not.
 
-### 3.5 Who validates what
+### 3.5 Validation responsibilities
 
-- **Person A (syntactic):** valid JSON, `v == 1`, `cmd` is known, required fields exist with the right Python types, `size` is a non-negative int. Failure → 400 straight from A.
-- **Person B (semantic):** username/password/filename formats, size limit, path safety, existence, ownership, session validity. B returns the error response; A forwards it unchanged.
+- The protocol layer checks that each message is a JSON object with the
+  supported version, a request id, and a known command.
+- The application layer validates credentials, sessions, filenames, file
+  sizes, hashes, ownership, and file existence.
 
-Validation rules B applies:
-- username: `^[A-Za-z0-9_]{3,32}$`
-- password: 8–128 characters
-- filename: `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`, must not contain `..`, no slashes, no spaces
-- size: `0 < size <= MAX_FILE_SIZE`
-- sha256: 64 lowercase hex characters
+Current validation rules:
+- username: starts with a letter, then 2–31 letters, digits, underscores, or hyphens
+- password: 8–1024 characters
+- filename: starts with a letter or digit, up to 128 characters; no traversal
+  sequences, path separators, trailing period, or reserved Windows device names
+- size: `0 < size <= MAX_FILE_SIZE` (100 MiB by default)
+- sha256: 64 lowercase hexadecimal characters
 
 ### 3.6 Command definitions and examples
 
@@ -231,20 +226,26 @@ The client downloads to `<name>.part` and renames only after the hash matches.
 ← {"v":1,"id":"r-6","status":200,"code":"OK","message":"Logged out","data":{}}
 ```
 
-**Protocol errors (generated by A)**
+**Protocol errors (generated by the server)**
 ```json
 ← {"v":1,"id":null,"status":400,"code":"BAD_REQUEST","message":"Unknown command","data":{}}
 ```
-If the framing itself is broken (length 0, length above the limit, invalid UTF-8/JSON), A sends one 400 response and closes the connection. If the connection drops mid-upload, A calls `handle.abort()`.
+If framing is invalid (for example, an invalid length or malformed JSON), the
+server returns an error and closes the connection. If the connection drops
+during an upload, the server aborts the upload handle.
 
 ---
 
 ## 4. Authentication and session handling
 
-- `LOGIN` verifies the password with Argon2id (`argon2-cffi`). On success B generates a token with `secrets.token_urlsafe(32)`.
-- The token is returned once. B stores only `SHA-256(token)` in the `sessions` table, so a database leak does not leak live tokens.
+- `LOGIN` verifies the password with Argon2id (`argon2-cffi`). On success the
+  authentication service generates a token with `secrets.token_urlsafe(32)`.
+- The token is returned once. The session service stores only
+  `SHA-256(token)` in the `sessions` table, so a database leak does not expose
+  live tokens.
 - Session lifetime is `SESSION_TTL_SECONDS` (default 1800). `LOGOUT` marks the session revoked.
-- Every controller call except `register`/`login` takes `token` and performs the session check itself (B's `auth_middleware.require_session`). A never inspects tokens.
+- Controller calls except `register`/`login` take `token` and validate the
+  session through `auth_middleware.require_session`.
 - Authorization: every file query is scoped by `user_id` taken from the session, never from the request. Users cannot name another user's files. (An admin role exists in the DB for later; it has no extra powers in this version.)
 - Lockout: 5 consecutive failed logins → account locked 5 minutes (`failed_attempts`, `locked_until`).
 - Token-to-IP binding and per-IP rate limiting are **postponed**; they are listed as limitations in `threat-model.md`.
@@ -254,16 +255,25 @@ If the framing itself is broken (length 0, length above the limit, invalid UTF-8
 ## 5. File data flow
 
 **Upload:**
-1. A parses PUT, calls `file_controller.begin_upload(...)`.
-2. B checks session, validates filename/size/sha256, checks overwrite rule, creates `storage/.tmp/<random>.part`, and returns an `UploadHandle`.
-3. A sends the 200 "Ready" response, then reads exactly `size` bytes and calls `handle.write(chunk)` for each chunk.
-4. A calls `handle.commit()`. B flushes and fsyncs, compares computed SHA-256 with the declared one, then `os.replace()` moves the file to `storage/<user_id>/<filename>` (atomic), upserts the `files` row, writes the audit event, and returns the final response dict.
-5. On any failure A calls `handle.abort(reason)` and B deletes the temp file.
+1. The server routes the PUT request to `file_controller.begin_upload(...)`.
+2. The controller checks the session and calls the file service, which
+   validates the filename, size, and SHA-256; checks the overwrite rule; and
+   returns an `UploadHandle` for a temporary file.
+3. The server sends the 200 "Ready" response, reads exactly `size` bytes, and
+   writes each chunk through the handle.
+4. The server calls `handle.commit()`. The file service flushes and fsyncs,
+   compares the computed SHA-256 with the declared one, atomically moves the
+   file to `storage/<user_id>/<filename>`, updates the `files` row, and writes
+   the audit event.
+5. On failure, the server aborts the handle, which removes the temporary file.
 
 **Download:**
-1. A calls `file_controller.open_download(...)`.
-2. B checks the session, resolves the path with `utils/paths.py` (confined to the user's directory), and returns a `DownloadHandle` with `.size` and `.sha256`.
-3. A sends the 200 response with `data`, then streams `for chunk in handle.read_chunks(): send(chunk)`, then `handle.close()`.
+1. The server routes the GET request to `file_controller.open_download(...)`.
+2. The controller checks the session, and the file service resolves the path
+   within the user's directory and returns a `DownloadHandle` with `.size` and
+   `.sha256`.
+3. The server sends the 200 response with `data`, streams the chunks from
+   `handle.read_chunks()`, and closes the handle.
 
 Streaming throughout: neither side loads a whole file into memory.
 
@@ -273,15 +283,17 @@ Streaming throughout: neither side loads a whole file into memory.
 
 ### 6.1 Return convention
 
-Controllers **never raise** for expected failures. They return a response dict:
+Controllers return a response dict for expected failures:
 
 ```python
 {"status": int, "code": str, "message": str, "data": dict}
 ```
 
-A wraps it with `v` and `id` before sending. If a controller raises anyway, A logs the traceback, sends a generic 500, and keeps serving other clients.
+The route layer adds the protocol version and request id before sending the
+response. Unexpected controller errors are logged and returned as a generic
+500 response.
 
-### 6.2 `controllers/auth_controller.py` (B implements, A calls)
+### 6.2 Authentication controller
 
 ```python
 def register(username: str, password: str, ip: str) -> dict: ...
@@ -290,7 +302,7 @@ def login(username: str, password: str, ip: str) -> dict:
 def logout(token: str, ip: str) -> dict: ...
 ```
 
-### 6.3 `controllers/file_controller.py` (B implements, A calls)
+### 6.3 File controller
 
 ```python
 def list_files(token: str, ip: str) -> dict:
@@ -304,7 +316,7 @@ def open_download(token: str, ip: str, filename: str) -> tuple[dict, "DownloadHa
     # status 200 -> (response with data={"filename","size","sha256"}, handle); else (response, None)
 ```
 
-### 6.4 Handle objects (B implements in `services/file_service.py`, A uses)
+### 6.4 File transfer handles
 
 ```python
 class UploadHandle:
@@ -319,7 +331,7 @@ class DownloadHandle:
     def close(self) -> None: ...                         # safe to call twice
 ```
 
-### 6.5 `Controllers` bundle (joint, in `app.py`)
+### 6.5 Controller bundle in `app.py`
 
 ```python
 from types import SimpleNamespace
@@ -332,7 +344,7 @@ controllers = SimpleNamespace(
 # python app.py --mock   -> mocks.mock_controllers.build() (no DB)
 ```
 
-### 6.6 A's own interfaces (for reference and tests)
+### 6.6 Protocol and framing utilities
 
 ```python
 # utils/framing.py
@@ -353,7 +365,7 @@ def dispatch(request: dict, ip: str, sock, controllers) -> None   # runs the com
 def run_server(controllers, cfg) -> None
 ```
 
-### 6.7 `utils` that B exposes (used inside B's services only)
+### 6.7 Shared utility functions
 
 ```python
 # utils/passwords.py
@@ -481,14 +493,14 @@ python-dotenv>=1.0
 pytest>=8.0
 ```
 
-MySQL (one-time, by Person B):
+Create a MySQL account for the application:
 ```sql
 CREATE USER 'secure_ft_user'@'localhost' IDENTIFIED BY '<choose-a-password>';
 GRANT ALL PRIVILEGES ON secure_ft.* TO 'secure_ft_user'@'localhost';
 ```
 Then `python -m database.init_db`.
 
-Test certificate (Person A), in `scripts/gen_certs.sh`:
+Generate a local test certificate with `scripts/gen_certs.sh`:
 ```bash
 mkdir -p certs
 openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/server.key -out certs/server.crt \
@@ -498,75 +510,13 @@ The client verifies the server by loading `certs/server.crt` as its trusted CA f
 
 ---
 
-## 10. Two-day task allocation
+## 10. Current scope
 
-### DAY 1 — build independently, integrate at the end
+The project supports registration, login, logout, file listing, upload,
+download, SHA-256 integrity verification, optional TLS, and concurrent clients.
+The server can run with either MySQL-backed controllers or in-memory mock
+controllers for testing.
 
-| Hour | Person A | Person B |
-|---|---|---|
-| 0–1 | **Both:** review and freeze this contract; create repo, `config.py`, `.env.example`, `requirements.txt`, empty package folders | same |
-| 1–3 | `utils/framing.py` + `tests/test_protocol.py` (framing, partial reads, oversize, bad JSON) | `database/` (schema, pool, init), `models/`, `utils/passwords.py`, `utils/hashing.py`, `utils/paths.py` |
-| 3–5 | `protocol.py`, `mocks/mock_controllers.py`, `routes/file_routes.py` | `services/auth_service.py`, `session_service.py`, `audit_service.py`, `middleware/`, `controllers/auth_controller.py`, `tests/test_auth.py` |
-| 5–7 | `server.py` (threads, TLS, timeouts, shutdown), `scripts/gen_certs.sh`, `client.py` (login, list) | `services/file_service.py` (handles), `controllers/file_controller.py`, `tests/test_files.py` |
-| 7–8 | **Integration:** write `app.py`; run server with `--mock`; run real controllers; fix interface mismatches | same |
-
-**Day 1 exit criteria:** `REGISTER → LOGIN → LIST` works end to end over TLS against real MySQL; `pytest tests/test_protocol.py tests/test_auth.py` passes.
-
-### DAY 2 — complete, verify, document
-
-| Hour | Person A | Person B |
-|---|---|---|
-| 0–2 | `client.py` PUT/GET with hash verification and `.part` rename; large-file test | Verify upload atomicity, size limit, overwrite rule, traversal attempts (`../`, absolute paths, encoded variants) |
-| 2–4 | `tests/stress_test.py`; run 10 → 25 → 50 → 100 clients; fix timeouts and thread issues | Check DB pool under load, audit log completeness, lockout behavior; tune pool size |
-| 4–5 | **Both:** Wireshark capture with `USE_TLS=false` (dummy credentials, isolated lab), then with TLS; screenshots of both | same |
-| 5–7 | `docs/protocol.md`, README run instructions | `docs/threat-model.md`, README setup/DB section |
-| 7–8 | **Both:** `docs/test-plan.md` with actual results, final regression run, demo rehearsal | same |
-
-### Progress checklist
-
-**Person A**
-- [ ] Contract frozen
-- [ ] `utils/framing.py` + tests
-- [ ] `protocol.py`
-- [ ] `mocks/mock_controllers.py`
-- [ ] `routes/file_routes.py`
-- [ ] `server.py` (TCP → TLS → threads → shutdown)
-- [ ] `scripts/gen_certs.sh`
-- [ ] `client.py` (register, login, list)
-- [ ] `client.py` (put, get + hash check)
-- [ ] `tests/stress_test.py` (50+ clients)
-- [ ] `docs/protocol.md`
-
-**Person B**
-- [ ] Contract frozen
-- [ ] `database/` + `init_db`
-- [ ] `models/`
-- [ ] `utils/passwords.py`, `hashing.py`, `paths.py`
-- [ ] `services/` (auth, session, audit)
-- [ ] `middleware/`
-- [ ] `controllers/auth_controller.py` + `tests/test_auth.py`
-- [ ] `services/file_service.py` (handles)
-- [ ] `controllers/file_controller.py` + `tests/test_files.py`
-- [ ] `docs/threat-model.md`
-
-**Joint**
-- [ ] `app.py` integration
-- [ ] End-to-end LIST/GET/PUT over TLS
-- [ ] Concurrency test (50+)
-- [ ] Wireshark plaintext vs TLS evidence
-- [ ] README, `test-plan.md`, final demo
-
-### Recommended to postpone (not needed for the deadline)
-
-Frontend/GUI, admin features, file deletion/rename, resumable transfers, mutual TLS, per-IP rate limiting, token-IP binding, DB migrations beyond `schema.sql`, compression.
-
----
-
-## 11. Change log
-
-| Version | Date | Change | Agreed by |
-|---|---|---|---|
-| 1 (draft) | 2026-11-16 | Initial contract | pending A / pending B |
-| 1.1 | 2026-11-16 | §7: `CREATE DATABASE`/`USE` moved from schema.sql into `init_db.py` (DB name from `.env`; also works on MariaDB). §3.5 filename rule tightened inside B's `utils/paths.py` only: also rejects `..` anywhere, trailing `.`, and Windows device names (CON, NUL, COM1...). No change visible to A. | pending A / pending B |
-| 1.2 | 2026-11-16 | Clarifications, no signature changes. §3.4/§4: `LOGIN` with malformed username/password returns 401 (same as wrong credentials), not 400; `REGISTER` still returns 400 for bad format. A locked account returns 429 before the password is checked. New A-owned `tests/test_routes.py`; new B-owned `services/errors.py` (AppError, internal to B) and `tests/test_database.py`. Routes behaviour: a server-side storage failure during PUT/GET closes the connection after a best-effort 500. | pending A / pending B |
-| 1.3 | 2026-11-16 | Stage 3, no signature changes. Behaviour now fixed: uploads stage in `storage/.tmp/<user_id>_<random>.part` and are finalized with an atomic `os.replace`; a global lock around name-check + rename + DB write guarantees that of N concurrent uploads of one filename (overwrite=false) exactly one succeeds and the rest get 409. A traversal-looking filename returns 400 and writes an `ACCESS_DENIED` audit event; a symlink escaping the user folder returns 403. `server.py`: `Server(...)` class plus `run_server(controllers, cfg)`; TLS handshake runs in the client's own thread; connections beyond `MAX_CLIENTS` are closed immediately; idle connections close after `IDLE_TIMEOUT`; `shutdown()` closes idle clients at once and lets in-flight requests finish. `routes` now restores the socket timeout the server had set. Client downloads to `<name>.part` and renames only after the SHA-256 matches. `utils/passwords.py` limits concurrent Argon2 hashes to 4 (memory protection). New: `scripts/gen_certs.sh`, `app.py`, `tests/test_server.py` (A), `tests/test_integration.py` (joint). | pending A / pending B |
+Features outside the current scope include a graphical interface, resumable
+transfers, mutual TLS, per-IP rate limiting, token-to-IP binding, and storage
+quotas.

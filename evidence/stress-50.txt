@@ -1,0 +1,21 @@
+Secure File Transfer - Concurrent Stress Test
+Timestamp: 2026-11-19T22:47:21+05:30
+Target: 127.0.0.1:5023
+Backend: mock
+Transport: TLS
+Concurrent clients: 50
+Passed clients: 50
+Failed clients: 0
+Completed workflow operations: 300/300
+Elapsed time: 0.37 seconds
+Client throughput: 134.54 clients/second
+
+Operation results:
+  REGISTER 50/50
+  LOGIN    50/50
+  UPLOAD   50/50
+  LIST     50/50
+  DOWNLOAD 50/50
+  LOGOUT   50/50
+
+Overall result: PASS

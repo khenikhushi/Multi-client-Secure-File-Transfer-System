@@ -1,5 +1,5 @@
 """
-middleware/auth_middleware.py  [PERSON B]
+middleware/auth_middleware.py
 
 require_session() is called at the start of every protected controller
 function. It turns a token into the user's identity. File services must use

@@ -1,5 +1,5 @@
 """
-models/file_record.py  [PERSON B]
+models/file_record.py
 
 Metadata of stored files (the bytes live on disk under storage/<user_id>/).
 Every query is scoped by user_id, so one user can never reach another's rows.

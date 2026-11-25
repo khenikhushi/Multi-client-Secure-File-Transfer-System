@@ -1,4 +1,4 @@
--- database/schema.sql  [PERSON B]
+-- Database tables for the file transfer application.
 -- Tables only. init_db.py creates the database (name from DB_NAME) and selects it first.
 
 CREATE TABLE IF NOT EXISTS roles (

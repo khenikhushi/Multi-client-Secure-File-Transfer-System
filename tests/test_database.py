@@ -1,5 +1,5 @@
 """
-tests/test_database.py  [PERSON B]
+tests/test_database.py
 Needs a running MySQL/MariaDB configured in .env (run `python -m database.init_db` first).
 Skipped automatically if the database is not reachable.
 Run:  pytest tests/test_database.py -v

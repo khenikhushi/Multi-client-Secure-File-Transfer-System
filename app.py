@@ -1,7 +1,7 @@
 """
 app.py  [JOINT FILE]
 
-Wires Person B's controllers into Person A's server and starts it.
+Wires the controllers into the server and starts the application.
 
     python app.py            # real controllers (needs MySQL, see README)
     python app.py --mock     # in-memory fake controllers (no database)

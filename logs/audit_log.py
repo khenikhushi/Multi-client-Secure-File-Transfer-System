@@ -1,4 +1,4 @@
-"""models/audit_log.py  [PERSON B]  Audit table access."""
+"""Audit table access."""
 from database.connection import execute, query_all
 
 

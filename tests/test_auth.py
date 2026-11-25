@@ -1,5 +1,5 @@
 """
-tests/test_auth.py  [PERSON B]
+tests/test_auth.py
 Stage 1: password hashing tests. Later stages add auth service tests.
 Run:  pytest tests/test_auth.py -v
 """

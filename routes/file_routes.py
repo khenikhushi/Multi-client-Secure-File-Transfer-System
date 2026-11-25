@@ -1,8 +1,8 @@
 """
-routes/file_routes.py  [PERSON A]
+routes/file_routes.py
 
-Maps each protocol command to Person B's controller functions and runs the
-network conversation (control messages + raw file bytes).
+Maps each protocol command to its controller function and runs the network
+conversation (control messages + raw file bytes).
 
 This file is the ONLY place where the network side meets the application side.
 It calls exactly the six functions listed in INTERFACE_CONTRACT.md section 6.
@@ -17,7 +17,7 @@ log = logging.getLogger("sft.routes")
 
 
 class _StorageFailure(Exception):
-    """Internal marker: the failure came from Person B's handle, not the network."""
+    """Marks a failure from the upload storage handle."""
 
 
 class DesyncError(Exception):

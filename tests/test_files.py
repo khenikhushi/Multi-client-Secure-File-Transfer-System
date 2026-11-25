@@ -1,5 +1,5 @@
 """
-tests/test_files.py  [PERSON B]
+tests/test_files.py
 Stage 1: hashing + path-safety tests. Later stages add upload/download tests.
 Run:  pytest tests/test_files.py -v
 """

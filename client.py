@@ -1,5 +1,5 @@
 """
-client.py  [PERSON A]
+client.py
 
 Command-line client for the secure file transfer server.
 
@@ -8,7 +8,6 @@ Command-line client for the secure file transfer server.
   python client.py --no-tls              # plain TCP (isolated Wireshark lab ONLY)
 
 SecureFTClient is also used by tests/stress_test.py, so keep it importable.
-This file never imports server-side (Person B) modules.
 """
 import argparse
 import getpass

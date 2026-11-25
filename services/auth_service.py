@@ -1,5 +1,5 @@
 """
-services/auth_service.py  [PERSON B]
+services/auth_service.py
 
 Registration, login, logout. Raises AppError for expected failures.
 

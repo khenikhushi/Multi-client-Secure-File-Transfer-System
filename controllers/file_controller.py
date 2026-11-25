@@ -1,7 +1,7 @@
 """
-controllers/file_controller.py  [PERSON B]
+controllers/file_controller.py
 
-The three functions Person A's routes call (INTERFACE_CONTRACT.md 6.3).
+The controller functions called by the routes (interface_contract.md section 6.3).
 Each one: check the session, call the service, build the response dict.
 They never raise; unexpected errors become a generic 500 (details only in logs).
 """

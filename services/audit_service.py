@@ -1,5 +1,5 @@
 """
-services/audit_service.py  [PERSON B]
+services/audit_service.py
 
 One function, log_event(), records who did what. Each event goes to:
   1. the audit_logs table (queryable), and
