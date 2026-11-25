@@ -1,5 +1,5 @@
 """
-tests/test_files.py  [PERSON B]
+tests/test_files.py
 Stage 1: hashing + path-safety tests. Later stages add upload/download tests.
 Run:  pytest tests/test_files.py -v
 """
@@ -34,6 +34,12 @@ def test_validate_size_rejects_invalid_values(size):
     with pytest.raises(AppError) as exc_info:
         validators.validate_size(size)
     assert exc_info.value.status == 400
+
+
+def test_validate_filename_uses_shared_path_rules():
+    validators.validate_filename("report.pdf")
+    with pytest.raises(AppError):
+        validators.validate_filename("CON.txt")
 
 
 def test_mock_controller_rejects_upload_over_configured_limit(monkeypatch):

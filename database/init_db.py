@@ -1,5 +1,5 @@
 """
-database/init_db.py  [PERSON B]
+database/init_db.py
 
 Creates the database, tables and seed rows. Safe to run more than once.
 

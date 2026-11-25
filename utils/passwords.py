@@ -1,5 +1,5 @@
 """
-utils/passwords.py  [PERSON B]
+utils/passwords.py
 
 Password hashing with Argon2id (argon2-cffi). We never store or log
 plaintext passwords; only the encoded hash string goes into the database.

@@ -1,5 +1,5 @@
 """
-utils/paths.py  [PERSON B]
+utils/paths.py
 
 Safe path handling to prevent directory traversal.
 

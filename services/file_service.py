@@ -1,11 +1,11 @@
 """
-services/file_service.py  [PERSON B]
+services/file_service.py
 
 File listing, upload and download.
 
 UPLOAD  (UploadHandle)
   1. begin_upload() validates everything and opens a temp file in storage/.tmp/
-  2. Person A calls handle.write(chunk) for every chunk; we hash while writing
+  2. The route calls handle.write(chunk) for every chunk; we hash while writing
   3. handle.commit(): flush + fsync, compare the SHA-256 with the one the client
      declared, then os.replace() the temp file onto storage/<user_id>/<name>.
      os.replace is atomic: readers see the old file or the new file, never half.

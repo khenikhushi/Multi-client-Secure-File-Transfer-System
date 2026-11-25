@@ -1,5 +1,5 @@
 """
-database/connection.py  [PERSON B]
+database/connection.py
 
 A small MySQL connection pool plus three helper functions so the rest of
 the code never builds SQL strings by hand. ALWAYS pass values through

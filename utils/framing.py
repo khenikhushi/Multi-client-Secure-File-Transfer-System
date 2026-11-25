@@ -1,5 +1,5 @@
 """
-utils/framing.py  [PERSON A]
+utils/framing.py
 
 Message framing for the secure file transfer protocol.
 

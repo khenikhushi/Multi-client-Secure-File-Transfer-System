@@ -1,5 +1,5 @@
 """
-utils/hashing.py  [PERSON B]
+utils/hashing.py
 
 Streaming SHA-256 so large files never have to fit in memory.
 """

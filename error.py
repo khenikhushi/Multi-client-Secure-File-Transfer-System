@@ -1,9 +1,9 @@
 """
-services/errors.py  [PERSON B]
+Shared application error and response helpers.
 
 AppError is how services/middleware say "this request failed, here is why".
 Controllers catch it and turn it into the response dict from
-INTERFACE_CONTRACT.md section 6.1. Person A never sees AppError.
+interface_contract.md section 6.1. AppError is internal to the application.
 """
 
 
@@ -24,7 +24,7 @@ def unauthenticated(message="Invalid or expired session"):
 
 
 def response(status, code, message, data=None):
-    """Build the dict that controllers return to Person A."""
+    """Build the response dictionary returned by a controller."""
     return {"status": status, "code": code, "message": message, "data": data if data is not None else {}}
 
 

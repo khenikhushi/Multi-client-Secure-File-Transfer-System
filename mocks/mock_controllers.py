@@ -1,11 +1,11 @@
 """
-mocks/mock_controllers.py  [PERSON A]
+mocks/mock_controllers.py
 
-In-memory fake of Person B's controllers so Person A can build and test the
-network side without MySQL. It follows INTERFACE_CONTRACT.md section 6 exactly.
+In-memory controller implementation for testing the network flow without
+MySQL. It follows the controller interfaces in interface_contract.md.
 
 WARNING: passwords are stored in plain text here. This is a TEST DOUBLE only;
-the real system uses Argon2id (Person B). Never use this for real data.
+the real system uses Argon2id. Never use this for real data.
 """
 import hashlib
 import secrets

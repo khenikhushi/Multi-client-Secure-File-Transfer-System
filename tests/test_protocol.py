@@ -1,5 +1,5 @@
 """
-tests/test_protocol.py  [PERSON A]
+tests/test_protocol.py
 Stage 1: framing tests. Later stages add protocol.py validation tests.
 Run:  pytest tests/test_protocol.py -v
 """
